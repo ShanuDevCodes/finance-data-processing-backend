@@ -5,7 +5,10 @@ import com.shanudevcodes.fdpacb.features.records.data.enums.Category;
 import com.shanudevcodes.fdpacb.features.records.data.enums.PaymentMethod;
 import com.shanudevcodes.fdpacb.features.records.data.enums.RecordType;
 import jakarta.validation.constraints.DecimalMin;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
