@@ -82,16 +82,6 @@ public class JWTService {
         );
     }
 
-    public boolean validateAccessToken(String token) {
-        try {
-            Claims claims = parseAllClaims(token);
-            String tokenType = claims.get("type", String.class);
-            return JwtType.ACCESS_TOKEN.name().equals(tokenType) && claims.getExpiration().after(new Date());
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     public boolean validateRefreshToken(String token){
         try {
             Claims claims = parseAllClaims(token);
@@ -105,14 +95,6 @@ public class JWTService {
     public UUID getUserIdFromToken(String token){
         Claims claims = parseAllClaims(token);
         return UUID.fromString(claims.getSubject());
-    }
-
-    public Set<Role> getUserRoles(String token){
-        Claims claims = parseAllClaims(token);
-        List<String> roles = claims.get("roles", List.class);
-        return roles.stream()
-                .map(Role::valueOf)
-                .collect(Collectors.toSet());
     }
 
     public String extractUsername(String token) {

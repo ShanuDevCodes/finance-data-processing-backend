@@ -23,13 +23,11 @@ import java.util.UUID;
 @Service
 public class RecordService {
     private final RecordsRepo recordsRepo;
-    private final UserRepo userRepo;
     RecordService(
             RecordsRepo recordsRepo,
             UserRepo userRepo
     ){
         this.recordsRepo = recordsRepo;
-        this.userRepo = userRepo;
     }
 
     public void createRecord(CreateRecordRequest request, UserModel user){
@@ -97,14 +95,6 @@ public class RecordService {
         }
         record.get().setIsDeleted(true);
         recordsRepo.save(record.get());
-    }
-
-    public RecordsModel getRecordById(UUID recordId, UserModel user){
-        Optional<RecordsModel> record = recordsRepo.findByIdAndUserIdAndIsDeletedFalse(recordId, user.getId());
-        if (record.isEmpty()){
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Record not found");
-        }
-        return record.get();
     }
 
     public Page<RecordsModel> getAllRecords(

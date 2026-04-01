@@ -1,5 +1,8 @@
 package com.shanudevcodes.fdpacb.features.records.data.enums;
 
+import lombok.Getter;
+
+@Getter
 public enum Category {
     SALARY(RecordType.INCOME),
     BUSINESS(RecordType.INCOME),
@@ -19,8 +22,5 @@ public enum Category {
     private final RecordType type;
     Category(RecordType type) {
         this.type = type;
-    }
-    public RecordType getType() {
-        return type;
     }
 }
