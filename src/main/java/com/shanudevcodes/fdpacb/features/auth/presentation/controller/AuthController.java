@@ -24,7 +24,9 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<SignUpResponse>> signup(@Valid @RequestBody SignupRequest request) {
+    public ResponseEntity<ApiResponse<SignUpResponse>> signup(
+            @Valid @RequestBody SignupRequest request
+    ) {
         SignUpResponse response = authService.createUser(request, Set.of(Role.VIEWER));
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse.<SignUpResponse>builder()
@@ -35,32 +37,10 @@ public class AuthController {
         );
     }
 
-    @PostMapping("/signup/admin")
-    public ResponseEntity<ApiResponse<SignUpResponse>> signupAdmin(@Valid @RequestBody SignupRequest request) {
-        SignUpResponse response = authService.createUser(request, Set.of(Role.VIEWER, Role.ADMIN, Role.ANALYST));
-        return ResponseEntity.status(HttpStatus.CREATED).body(
-                ApiResponse.<SignUpResponse>builder()
-                        .status("success")
-                        .message("User created successfully")
-                        .data(response)
-                        .build()
-        );
-    }
-
-    @PostMapping("/signup/analyst")
-    public ResponseEntity<ApiResponse<SignUpResponse>> signupAnalyst(@Valid @RequestBody SignupRequest request) {
-        SignUpResponse response = authService.createUser(request, Set.of(Role.VIEWER, Role.ANALYST));
-        return ResponseEntity.status(HttpStatus.CREATED).body(
-                ApiResponse.<SignUpResponse>builder()
-                        .status("success")
-                        .message("User created successfully")
-                        .data(response)
-                        .build()
-        );
-    }
-
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
+            @Valid @RequestBody LoginRequest request
+    ) {
         TokenPair tokens = authService.loginUser(request);
         return ResponseEntity.ok(
                 ApiResponse.<LoginResponse>builder()
@@ -75,7 +55,9 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<TokenPair>> refresh(@Valid @RequestBody RefreshRequest request) {
+    public ResponseEntity<ApiResponse<TokenPair>> refresh(
+            @Valid @RequestBody RefreshRequest request
+    ) {
         String refreshToken = request.getRefreshToken();
         TokenPair tokens = authService.refresh(refreshToken);
         return ResponseEntity.ok(

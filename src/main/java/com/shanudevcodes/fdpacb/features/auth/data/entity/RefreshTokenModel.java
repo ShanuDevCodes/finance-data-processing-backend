@@ -22,12 +22,17 @@ public class RefreshTokenModel {
     private UUID id;
     @Column(nullable = false)
     private Instant expiresAt;
-    @Builder.Default
     @Column(nullable = false, updatable = false)
-    private Instant issuedAt = Instant.now();
+    private Instant issuedAt;
     @Column(nullable = false, unique = true)
     private String hashedToken;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private UserModel user;
+    @PrePersist
+    public void prePersist() {
+        if (this.issuedAt == null) {
+            this.issuedAt = Instant.now();
+        }
+    }
 }

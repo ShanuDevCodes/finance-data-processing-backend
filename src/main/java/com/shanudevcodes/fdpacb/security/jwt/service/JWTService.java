@@ -9,6 +9,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -47,7 +48,7 @@ public class JWTService {
         Date expiryDate = new Date(now.getTime() + expiry);
         return Jwts.builder()
                 .setId(UUID.randomUUID().toString())
-                .setSubject(user.getId().toString())
+                .setSubject(user.getEmail())
                 .claim("type", type.name())
                 .claim("roles", user.getRoles()
                         .stream()
@@ -59,7 +60,6 @@ public class JWTService {
                 .setAudience("fdpacb-client")
                 .signWith(secretKey, SignatureAlgorithm.HS256)
                 .compact();
-
     }
 
     public String generateAccessToken(
@@ -113,5 +113,23 @@ public class JWTService {
         return roles.stream()
                 .map(Role::valueOf)
                 .collect(Collectors.toSet());
+    }
+
+    public String extractUsername(String token) {
+        return parseAllClaims(token).getSubject();
+    }
+
+    public boolean validateToken(String token, UserDetails userDetails) {
+        try {
+            Claims claims = parseAllClaims(token);
+            String username = claims.getSubject();
+            String tokenType = claims.get("type", String.class);
+            return username.equals(userDetails.getUsername())
+                    && JwtType.ACCESS_TOKEN.name().equals(tokenType)
+                    && claims.getExpiration().after(new Date());
+
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
