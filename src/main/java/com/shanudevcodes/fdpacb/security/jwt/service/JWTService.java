@@ -12,9 +12,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
-import java.util.Base64;
-import java.util.Date;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class JWTService {
@@ -28,19 +27,15 @@ public class JWTService {
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    private final Long accessTokenValidityMs = 15L * 60L * 1000L;
-    private final Long refreshTokenValidityMs = 30L * 24L * 60L * 60L * 1000L;
+    final Long accessTokenValidityMs = 15L * 60L * 1000L;
+    public final Long refreshTokenValidityMs = 30L * 24L * 60L * 60L * 1000L;
 
     public Claims parseAllClaims(String token) {
-        try {
-            return Jwts.parserBuilder()
-                    .setSigningKey(secretKey)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid or expired JWT token", e);
-        }
+        return Jwts.parserBuilder()
+                .setSigningKey(secretKey)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 
     private String generateToken(
@@ -51,11 +46,17 @@ public class JWTService {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiry);
         return Jwts.builder()
+                .setId(UUID.randomUUID().toString())
                 .setSubject(user.getId().toString())
                 .claim("type", type.name())
-                .claim("role", user.getRole().name())
+                .claim("roles", user.getRoles()
+                        .stream()
+                        .map(Enum::name)
+                        .toList())
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
+                .setIssuer("fdpacb-backend")
+                .setAudience("fdpacb-client")
                 .signWith(secretKey, SignatureAlgorithm.HS256)
                 .compact();
 
@@ -106,8 +107,11 @@ public class JWTService {
         return UUID.fromString(claims.getSubject());
     }
 
-    public Role getUserRole(String token){
+    public Set<Role> getUserRoles(String token){
         Claims claims = parseAllClaims(token);
-        return Role.valueOf(claims.get("role", String.class));
+        List<String> roles = claims.get("roles", List.class);
+        return roles.stream()
+                .map(Role::valueOf)
+                .collect(Collectors.toSet());
     }
 }

@@ -50,7 +50,7 @@ class SecurityConfig {
 //
 //                        .requestMatchers("/api/v1/admin/**")
 //                        .hasRole("ADMIN")
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 )
                 .addFilterBefore(
                         jwtAuthFilter,

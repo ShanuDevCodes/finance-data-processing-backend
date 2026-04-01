@@ -14,6 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -34,12 +35,13 @@ public class JWTAuthFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ") && SecurityContextHolder.getContext().getAuthentication() == null ){
             String token = authHeader.substring(7);
-            if (jwtService.validateAccessToken(token)){
+            if(jwtService.validateAccessToken(token)) {
                 UUID userId = jwtService.getUserIdFromToken(token);
-                Role role = jwtService.getUserRole(token);
+                Set<Role> roles = jwtService.getUserRoles(token);
                 if (userId != null) {
-                    List<SimpleGrantedAuthority> authorities =
-                            List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+                    List<SimpleGrantedAuthority> authorities = roles.stream()
+                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
+                            .toList();
                     UsernamePasswordAuthenticationToken auth =
                             new UsernamePasswordAuthenticationToken(
                                     userId,
