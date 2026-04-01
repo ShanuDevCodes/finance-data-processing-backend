@@ -3,7 +3,10 @@ package com.shanudevcodes.fdpacb.features.users.data.entity;
 import com.shanudevcodes.fdpacb.security.rbac.role.Role;
 import com.shanudevcodes.fdpacb.security.rbac.role.Status;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.Set;
 import java.util.UUID;
