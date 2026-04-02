@@ -18,7 +18,7 @@ public interface RecordsRepo extends JpaRepository<RecordsModel, UUID> {
 
     @Query("""
     SELECT r FROM RecordsModel r
-    WHERE r.user.id = :userId
+    WHERE r.user.id IN :userIds
     AND r.isDeleted = false
     AND (:type IS NULL OR r.type = :type)
     AND (:category IS NULL OR r.category = :category)
