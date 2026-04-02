@@ -61,9 +61,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Object> handleGenericException(Exception ex) {
+        ex.printStackTrace();
         return ApiResponse.builder()
                 .status("error")
-                .message("Something went wrong")
+                .message(ex.getMessage())
+//                .message("Something went wrong")
                 .data(null)
                 .build();
     }

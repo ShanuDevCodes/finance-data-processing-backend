@@ -96,6 +96,9 @@ public class AuthService {
         if (user.isEmpty()){
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
+        if (user.get().getStatus() != Status.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User account is disabled");
+        }
         boolean isPasswordValid = validateUserCredentials(request.email, request.password);
         if (!isPasswordValid) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
@@ -125,6 +128,9 @@ public class AuthService {
         Optional<UserModel> user = userRepo.findById(userId);
         if (user.isEmpty()){
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,"User Not Found");
+        }
+        if (user.get().getStatus() != Status.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User account is disabled");
         }
         String hashed = hashToken(refreshToken);
         if (refreshTokenRepo.findByUser_IdAndHashedToken(user.get().getId(),hashed).isEmpty()){

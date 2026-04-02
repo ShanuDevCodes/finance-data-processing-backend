@@ -1,6 +1,7 @@
 package com.shanudevcodes.fdpacb.features.records.domain.service;
 
 import com.shanudevcodes.fdpacb.features.records.data.dto.CreateRecordRequest;
+import com.shanudevcodes.fdpacb.features.records.data.dto.RecordCreatedResponse;
 import com.shanudevcodes.fdpacb.features.records.data.dto.UpdateRecordRequest;
 import com.shanudevcodes.fdpacb.features.records.data.entity.RecordsModel;
 import com.shanudevcodes.fdpacb.features.records.data.enums.Category;
@@ -30,7 +31,7 @@ public class RecordService {
     private final UserRepo userRepo;
 
     @Transactional
-    public void createRecord(CreateRecordRequest request, UUID userID){
+    public RecordCreatedResponse createRecord(CreateRecordRequest request, UUID userID){
         UserModel user = userRepo.findById(userID).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         RecordType type = RecordType.valueOf(request.getType().toUpperCase());
         PaymentMethod paymentMethod = PaymentMethod.valueOf(request.getPaymentMethod().toUpperCase());
@@ -49,6 +50,15 @@ public class RecordService {
                 .user(user)
                 .build();
         recordsRepo.save(newRecord);
+        return RecordCreatedResponse.builder()
+                .id(newRecord.getId())
+                .amount(newRecord.getAmount())
+                .type(newRecord.getType().name())
+                .category(newRecord.getCategory().name())
+                .transactionDate(newRecord.getTransactionDate())
+                .status(newRecord.getStatus().name())
+                .build();
+
     }
 
     @Transactional
@@ -98,14 +108,19 @@ public class RecordService {
         recordsRepo.save(record);
     }
 
+    @Transactional
     public Page<RecordsModel> getAllRecords(
-            UserModel user,
+            UUID userId,
             int page,
             int size,
             String type,
             String category,
             List<UUID> assignedUserIds
     ) {
+        UserModel user = userRepo.findById(userId)
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
+                );
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         RecordType recordType = null;
         Category recordCategory = null;
@@ -115,7 +130,11 @@ public class RecordService {
         if (category != null) {
             recordCategory = Category.valueOf(category.toUpperCase());
         }
-        if (user.getRoles().contains(Role.ANALYST)) {
+        if (user.getRoles().contains(Role.ADMIN)) {
+            if (assignedUserIds != null && assignedUserIds.isEmpty()) {
+                assignedUserIds = null;
+            }
+        } else if (user.getRoles().contains(Role.ANALYST)) {
             List<UUID> allowedUserIds = user.getAssignedUsers()
                     .stream()
                     .map(UserModel::getId)
@@ -127,11 +146,9 @@ public class RecordService {
             } else {
                 assignedUserIds = allowedUserIds;
             }
-        } else if (user.getRoles().contains(Role.ADMIN)) {
-            if (assignedUserIds == null || assignedUserIds.isEmpty()) {
-                assignedUserIds = null;
-            }
         }
+        System.out.println("FINAL assignedUserIds = " + assignedUserIds);
+        System.out.println("User role = " + user.getRoles());
         return recordsRepo.findAllByFilters(
                 assignedUserIds,
                 recordType,
