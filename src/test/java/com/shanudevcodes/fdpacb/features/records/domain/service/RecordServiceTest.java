@@ -14,8 +14,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -58,10 +58,11 @@ class RecordServiceTest {
 
     @Test
     void testAnalystDataScoping_RequestsAllAssignedData_GetsOnlyAssignedData() {
+        when(userRepo.findById(analyst.getId())).thenReturn(Optional.of(analyst));
         when(recordsRepo.findAllByFilters(any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(new RecordsModel())));
 
-        recordService.getAllRecords(analyst, 0, 10, null, null, null);
+        recordService.getAllRecords(analyst.getId(), 0, 10, null, null, null);
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<UUID>> idCaptor = ArgumentCaptor.forClass(List.class);
@@ -76,11 +77,12 @@ class RecordServiceTest {
 
     @Test
     void testAnalystDataScoping_AttemptsToAccessUnassignedData_SecurityStripsUnassignedId() {
+        when(userRepo.findById(analyst.getId())).thenReturn(Optional.of(analyst));
         when(recordsRepo.findAllByFilters(any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of()));
 
         List<UUID> maliciousRequest = List.of(assignedViewer1.getId(), unassignedViewerId);
-        recordService.getAllRecords(analyst, 0, 10, null, null, maliciousRequest);
+        recordService.getAllRecords(analyst.getId(), 0, 10, null, null, maliciousRequest);
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<UUID>> idCaptor = ArgumentCaptor.forClass(List.class);
