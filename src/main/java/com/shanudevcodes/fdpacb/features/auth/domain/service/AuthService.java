@@ -141,10 +141,8 @@ public class AuthService {
     }
 
     public CapabilitiesResponse getCapabilities(UserModel user) {
-        boolean isViewer = user.getRoles().contains(Role.VIEWER);
         boolean isAnalyst = user.getRoles().contains(Role.ANALYST);
         boolean isAdmin = user.getRoles().contains(Role.ADMIN);
-
         return CapabilitiesResponse.builder()
                 .canCreateRecords(isAdmin)
                 .canManageUsers(isAdmin)

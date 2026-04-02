@@ -78,7 +78,7 @@ All endpoints return a consistent JSON envelope:
 {
   "status": "success | error",
   "message": "Human readable description",
-  "data": { ... }
+  "data": {}
 }
 ```
 
@@ -140,10 +140,10 @@ The dashboard response includes:
   "totalIncome": 85000.00,
   "totalExpense": 34200.50,
   "netBalance": 50799.50,
-  "categoryBreakdown": { "SALARY": 85000.00, "FOOD": 12000.00, ... },
+  "categoryBreakdown": { "SALARY": 85000.00, "FOOD": 12000.00 },
   "typeBreakdown": { "INCOME": 85000.00, "EXPENSE": 34200.50 },
   "statusBreakdown": { "PENDING": 10000.00, "COMPLETED": 75000.00 },
-  "recentTransactions": [ ... ]
+  "recentTransactions": []
 }
 ```
 
