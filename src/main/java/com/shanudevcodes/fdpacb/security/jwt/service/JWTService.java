@@ -2,7 +2,6 @@ package com.shanudevcodes.fdpacb.security.jwt.service;
 
 import com.shanudevcodes.fdpacb.features.users.data.entity.UserModel;
 import com.shanudevcodes.fdpacb.security.jwt.util.JwtType;
-import com.shanudevcodes.fdpacb.security.rbac.role.Role;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -13,8 +12,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Base64;
+import java.util.Date;
+import java.util.UUID;
 
 @Service
 public class JWTService {
