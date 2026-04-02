@@ -13,5 +13,5 @@ import lombok.NoArgsConstructor;
 @Builder
 public class UpdateRolesRequest {
     @ValidEnum(enumClass = Role.class, message = "Invalid role")
-    private Role role;
+    private String role;
 }

@@ -15,9 +15,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -75,12 +76,15 @@ public class UserService {
     }
 
     @Transactional
-    public UserModel changeRole(UUID userId, List<Role> roles){
+    public UserModel changeRole(UUID userId, List<String> roles){
         if (roles == null || roles.isEmpty()){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Roles cannot be empty");
         }
+        Set<Role> roleSet = roles.stream()
+                .map(r -> Role.valueOf(r.toUpperCase()))
+                .collect(Collectors.toSet());
         UserModel user = getUser(userId);
-        user.setRoles(new HashSet<>(roles));
+        user.setRoles(roleSet);
         return userRepo.save(user);
     }
 

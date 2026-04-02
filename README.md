@@ -262,7 +262,7 @@ Viewers are linked to Analysts via a `@ManyToOne` JPA relationship (`assigned_an
 - **Access tokens** - 15-minute TTL. Carry `userId`, `email`, and `roles` as claims.
 - **Refresh tokens** - 30-day TTL. Stored in the database as SHA-256 hashes. The raw token is never persisted.
 - **Rotation** - on every refresh call, the used token hash is deleted from the database and a new pair is issued. A stolen token used after the legitimate owner has refreshed will be rejected.
-- **Inactive users** - if an Admin deactivates a user (`status = INACTIVE`), the user is rejected by Spring Security's `isAccountNonLocked()` check on every subsequent request, even if they hold a valid access token.
+- **Inactive users** - If an Admin deactivates a user (`status = INACTIVE`), that user is immediately blocked from logging in or refreshing tokens. Furthermore, any active access tokens they currently hold are instantly rejected by the system's `isAccountNonLocked()` evaluation at the filter level.
 
 ### Rate Limiting
 

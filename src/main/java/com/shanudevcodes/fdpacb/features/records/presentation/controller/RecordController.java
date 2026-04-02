@@ -2,6 +2,7 @@ package com.shanudevcodes.fdpacb.features.records.presentation.controller;
 
 import com.shanudevcodes.fdpacb.common.exception.dto.ApiResponse;
 import com.shanudevcodes.fdpacb.features.records.data.dto.CreateRecordRequest;
+import com.shanudevcodes.fdpacb.features.records.data.dto.RecordCreatedResponse;
 import com.shanudevcodes.fdpacb.features.records.data.dto.UpdateRecordRequest;
 import com.shanudevcodes.fdpacb.features.records.data.entity.RecordsModel;
 import com.shanudevcodes.fdpacb.features.records.domain.service.RecordService;
@@ -25,16 +26,17 @@ public class RecordController {
     private final RecordService recordService;
 
     @PreAuthorize("hasAnyRole('ADMIN')")
-    @PostMapping("/{userId}")
-    public ResponseEntity<ApiResponse<String>> create(
+    @PostMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<RecordCreatedResponse>> create(
             @Valid @RequestBody CreateRecordRequest request,
             @PathVariable UUID userId
     ){
-        recordService.createRecord(request, userId);
+        RecordCreatedResponse response = recordService.createRecord(request, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(
-                ApiResponse.<String>builder()
+                ApiResponse.<RecordCreatedResponse>builder()
                         .status("success")
                         .message("Record created successfully")
+                        .data(response)
                         .build()
         );
     }
@@ -65,7 +67,7 @@ public class RecordController {
             @RequestParam(required = false) List<UUID> assigned_userid
     ) {
         Page<RecordsModel> records = recordService.getAllRecords(
-                user, page, size, type, category, assigned_userid
+                user.getId(), page, size, type, category, assigned_userid
         );
 
         return ResponseEntity.ok(

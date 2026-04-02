@@ -16,8 +16,6 @@ import java.util.UUID;
 public interface UserRepo extends JpaRepository<UserModel, UUID> {
     Optional<UserModel> findByEmail(String email);
 
-    Optional<UserModel> findById(UUID id);
-
     @Query("""
     SELECT u FROM UserModel u
     WHERE (:role IS NULL OR :role MEMBER OF u.roles)
