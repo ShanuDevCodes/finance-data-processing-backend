@@ -1,5 +1,6 @@
 package com.shanudevcodes.fdpacb.features.users.data.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.shanudevcodes.fdpacb.security.rbac.role.Role;
 import com.shanudevcodes.fdpacb.security.rbac.role.Status;
 import jakarta.persistence.*;
@@ -29,6 +30,7 @@ public class UserModel implements UserDetails {
     private String name;
     @Column(nullable = false, unique = true)
     private String email;
+    @JsonIgnore
     @Column(nullable = false)
     private String hashedPassword;
     @ElementCollection(fetch = FetchType.EAGER)
@@ -41,9 +43,11 @@ public class UserModel implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Status status;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_analyst_id")
     private UserModel assignedAnalyst;
+    @JsonIgnore
     @OneToMany(mappedBy = "assignedAnalyst", fetch = FetchType.LAZY)
     private Set<UserModel> assignedUsers;
 
