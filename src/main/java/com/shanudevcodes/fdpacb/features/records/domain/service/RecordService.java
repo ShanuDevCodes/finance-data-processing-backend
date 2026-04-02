@@ -147,8 +147,6 @@ public class RecordService {
                 assignedUserIds = allowedUserIds;
             }
         }
-        System.out.println("FINAL assignedUserIds = " + assignedUserIds);
-        System.out.println("User role = " + user.getRoles());
         return recordsRepo.findAllByFilters(
                 assignedUserIds,
                 recordType,

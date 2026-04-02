@@ -63,6 +63,7 @@ public class UserModel implements UserDetails {
     }
 
     @Override
+    @JsonIgnore
     public String getPassword() {
         return hashedPassword;
     }

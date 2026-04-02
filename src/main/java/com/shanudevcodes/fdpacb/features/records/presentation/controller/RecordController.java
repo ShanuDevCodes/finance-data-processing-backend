@@ -42,7 +42,7 @@ public class RecordController {
     }
 
     @PreAuthorize("hasAnyRole('ADMIN')")
-    @PostMapping("/{recordId}")
+    @PutMapping("/{recordId}")
     public ResponseEntity<ApiResponse<String>> update(
             @PathVariable UUID recordId,
             @Valid @RequestBody UpdateRecordRequest request

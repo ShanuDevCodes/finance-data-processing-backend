@@ -27,7 +27,7 @@ public class AuthController {
         SignUpResponse response = authService.createUser(request, Set.of(Role.VIEWER));
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse.<SignUpResponse>builder()
-                        .status("success")
+                        .status("Success")
                         .message("User created successfully")
                         .data(response)
                         .build()
@@ -41,7 +41,7 @@ public class AuthController {
         TokenPair tokens = authService.loginUser(request);
         return ResponseEntity.ok(
                 ApiResponse.<LoginResponse>builder()
-                        .status("Success")
+                        .status("success")
                         .message("Login successful")
                         .data(new LoginResponse(
                                 tokens.getAccessToken(),
@@ -59,7 +59,7 @@ public class AuthController {
         TokenPair tokens = authService.refresh(refreshToken);
         return ResponseEntity.ok(
                 ApiResponse.<TokenPair>builder()
-                        .status("Success")
+                        .status("success")
                         .message("Refresh successful")
                         .data(tokens)
                         .build()
@@ -71,7 +71,7 @@ public class AuthController {
             @AuthenticationPrincipal UserModel user
     ) {
         return ResponseEntity.ok(ApiResponse.<CapabilitiesResponse>builder()
-                .status("success")
+                .status("Success")
                 .message("Capabilities fetched contextually via Authentication context")
                 .data(authService.getCapabilities(user))
                 .build());
