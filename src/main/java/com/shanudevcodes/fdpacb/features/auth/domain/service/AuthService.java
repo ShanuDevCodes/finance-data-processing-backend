@@ -1,10 +1,7 @@
 package com.shanudevcodes.fdpacb.features.auth.domain.service;
 
 import com.shanudevcodes.fdpacb.common.util.HashPassEncoder;
-import com.shanudevcodes.fdpacb.features.auth.data.dto.LoginRequest;
-import com.shanudevcodes.fdpacb.features.auth.data.dto.SignUpResponse;
-import com.shanudevcodes.fdpacb.features.auth.data.dto.SignupRequest;
-import com.shanudevcodes.fdpacb.features.auth.data.dto.TokenPair;
+import com.shanudevcodes.fdpacb.features.auth.data.dto.*;
 import com.shanudevcodes.fdpacb.features.auth.data.entity.RefreshTokenModel;
 import com.shanudevcodes.fdpacb.features.auth.data.repository.RefreshTokenRepo;
 import com.shanudevcodes.fdpacb.features.users.data.entity.UserModel;
@@ -141,5 +138,20 @@ public class AuthService {
                 newAccessToken,
                 newRefreshToken
         );
+    }
+
+    public CapabilitiesResponse getCapabilities(UserModel user) {
+        boolean isViewer = user.getRoles().contains(Role.VIEWER);
+        boolean isAnalyst = user.getRoles().contains(Role.ANALYST);
+        boolean isAdmin = user.getRoles().contains(Role.ADMIN);
+
+        return CapabilitiesResponse.builder()
+                .canCreateRecords(isAdmin)
+                .canManageUsers(isAdmin)
+                .canFilterByUsers(isAdmin || isAnalyst)
+                .allowedFilters(isAdmin || isAnalyst ?
+                        java.util.List.of("date", "category", "type", "target_user_id") :
+                        java.util.List.of("date", "category", "type"))
+                .build();
     }
 }

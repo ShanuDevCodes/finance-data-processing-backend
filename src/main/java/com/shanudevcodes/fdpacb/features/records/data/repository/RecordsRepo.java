@@ -75,10 +75,4 @@ public interface RecordsRepo extends JpaRepository<RecordsModel, UUID> {
         LIMIT 5
     """)
     List<RecordsModel> findRecent(List<UUID> userIds);
-
-    @Query("""
-    SELECT u.id FROM UserModel u
-    WHERE u.assignedAnalyst.id = :analystId
-""")
-    List<UUID> findViewerIdsByAnalyst(UUID analystId);
 }

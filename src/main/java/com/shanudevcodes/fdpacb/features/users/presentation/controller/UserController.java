@@ -21,9 +21,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import com.shanudevcodes.fdpacb.security.rbac.role.Role;
 
 @RestController
 @RequestMapping("/api/v1/users")
