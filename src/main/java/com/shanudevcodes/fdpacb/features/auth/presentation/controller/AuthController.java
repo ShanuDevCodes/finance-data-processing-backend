@@ -8,11 +8,15 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.shanudevcodes.fdpacb.features.users.data.entity.UserModel;
 
+import java.util.List;
 import java.util.Set;
 
 @RestController
@@ -65,6 +69,29 @@ public class AuthController {
                         .data(tokens)
                         .build()
         );
+    }
+    @GetMapping("/me/capabilities")
+    public ResponseEntity<ApiResponse<CapabilitiesResponse>> getCapabilities(
+            @AuthenticationPrincipal UserModel user
+    ) {
+        boolean isViewer = user.getRoles().contains(Role.VIEWER);
+        boolean isAnalyst = user.getRoles().contains(Role.ANALYST);
+        boolean isAdmin = user.getRoles().contains(Role.ADMIN);
+
+        CapabilitiesResponse capabilities = CapabilitiesResponse.builder()
+                .canCreateRecords(isAdmin)
+                .canManageUsers(isAdmin)
+                .canFilterByUsers(isAdmin || isAnalyst)
+                .allowedFilters(isAdmin || isAnalyst ?
+                        List.of("date", "category", "type", "target_user_id") :
+                        List.of("date", "category", "type"))
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.<CapabilitiesResponse>builder()
+                .status("success")
+                .message("Capabilities fetched contextually via Authentication context")
+                .data(capabilities)
+                .build());
     }
 
 }

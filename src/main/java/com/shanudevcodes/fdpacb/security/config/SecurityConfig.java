@@ -40,9 +40,7 @@ public class SecurityConfig {
                                 .accessDeniedHandler(jwtAccessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/v1/auth/**"
-                        ).permitAll()
+                        .requestMatchers(PublicPaths.PATTERNS).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(

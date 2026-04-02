@@ -5,9 +5,12 @@ import com.shanudevcodes.fdpacb.features.users.data.entity.UserModel;
 import com.shanudevcodes.fdpacb.features.users.data.repository.UserRepo;
 import com.shanudevcodes.fdpacb.security.rbac.role.Role;
 import com.shanudevcodes.fdpacb.security.rbac.role.Status;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -29,10 +32,24 @@ public class UserService {
                 );
     }
 
-    public Page<UserModel> getAllUsers(Pageable pageable){
-        return userRepo.findAll(pageable);
+    public Page<UserModel> getAllUsers(
+            Pageable pageable,
+            Role role,
+            Status status,
+            UUID analystId
+    ) {
+        int maxSize = 50;
+        Pageable safePageable = PageRequest.of(
+                pageable.getPageNumber(),
+                Math.min(pageable.getPageSize(), maxSize),
+                pageable.getSort().isSorted()
+                        ? pageable.getSort()
+                        : Sort.by("createdAt").descending()
+        );
+        return userRepo.findAllWithFilters(role, status, analystId, safePageable);
     }
 
+    @Transactional
     public UserModel toggleStatus(UUID userID) {
         UserModel user = getUser(userID);
         if (user.getStatus() == Status.ACTIVE) {
@@ -43,6 +60,7 @@ public class UserService {
         return userRepo.save(user);
     }
 
+    @Transactional
     public UserModel assignViewerToAnalyst(UUID viewer, UUID analystId) {
         if (viewer.equals(analystId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User cannot be assigned to themselves");
@@ -56,6 +74,7 @@ public class UserService {
         return userRepo.save(user);
     }
 
+    @Transactional
     public UserModel changeRole(UUID userId, List<Role> roles){
         if (roles == null || roles.isEmpty()){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Roles cannot be empty");
@@ -65,11 +84,13 @@ public class UserService {
         return userRepo.save(user);
     }
 
+    @Transactional
     public UserModel changeName(UserModel user, String name){
         user.setName(name);
         return userRepo.save(user);
     }
 
+    @Transactional
     public UserModel changeEmail(UserModel user, String email){
         if (userRepo.findByEmail(email).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
@@ -78,6 +99,7 @@ public class UserService {
         return userRepo.save(user);
     }
 
+    @Transactional
     public UserModel changePassword(UserModel user, String password){
         if (hashPassEncoder.matches(password,user.getHashedPassword())){
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New password cannot be the same as the old password");
@@ -87,4 +109,7 @@ public class UserService {
         return userRepo.save(user);
     }
 
+    public List<UserModel> getAssignedViewers(UUID analystId) {
+        return userRepo.findUserModelByAssignedAnalyst_Id(analystId);
+    }
 }

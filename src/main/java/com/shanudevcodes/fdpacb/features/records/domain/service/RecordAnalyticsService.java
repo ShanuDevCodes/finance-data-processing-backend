@@ -11,7 +11,9 @@ import com.shanudevcodes.fdpacb.features.users.data.entity.UserModel;
 import com.shanudevcodes.fdpacb.features.users.data.repository.UserRepo;
 import com.shanudevcodes.fdpacb.security.rbac.role.Role;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -26,8 +28,8 @@ public class RecordAnalyticsService {
     private final RecordsRepo recordsRepo;
     private final UserRepo userRepo;
 
-    public DashboardResponse getDashboard(UserModel user) {
-        List<UUID> userIds = getAccessibleUserIds(user);
+    public DashboardResponse getDashboard(UserModel user, List<UUID> targetUserIds) {
+        List<UUID> userIds = getAccessibleUserIds(user, targetUserIds);
         BigDecimal income = recordsRepo.sumByType(userIds, RecordType.INCOME);
         BigDecimal expense = recordsRepo.sumByType(userIds, RecordType.EXPENSE);
         Map<Category, BigDecimal> categoryMap = mapToCategory(recordsRepo.categoryBreakdown(userIds));
@@ -48,7 +50,28 @@ public class RecordAnalyticsService {
                 .build();
     }
 
-    private List<UUID> getAccessibleUserIds(UserModel user) {
+    private List<UUID> getAccessibleUserIds(UserModel user, List<UUID> targetUserIds) {
+        if (targetUserIds != null && !targetUserIds.isEmpty()) {
+            if (user.getRoles().contains(Role.ADMIN)) {
+                return targetUserIds;
+            }
+            if (user.getRoles().contains(Role.ANALYST)) {
+                List<UUID> assignedIds = userRepo.findUserModelByAssignedAnalyst_Id(user.getId())
+                        .stream().map(UserModel::getId).toList();
+                for (UUID targetId : targetUserIds) {
+                    if (!targetId.equals(user.getId()) && !assignedIds.contains(targetId)) {
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view data for one or more users in the target list");
+                    }
+                }
+                return targetUserIds;
+            }
+            for (UUID targetId : targetUserIds) {
+                if (!targetId.equals(user.getId())) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view data for one or more users in the target list");
+                }
+            }
+            return targetUserIds;
+        }
         if (user.getRoles().contains(Role.ADMIN)) {
             return userRepo.findAll().stream().map(UserModel::getId).toList();
         }
