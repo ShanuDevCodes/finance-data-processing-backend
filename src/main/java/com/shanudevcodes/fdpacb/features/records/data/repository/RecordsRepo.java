@@ -14,17 +14,17 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface RecordsRepo extends JpaRepository<RecordsModel, UUID> {
-    Optional<RecordsModel> findByIdAndUserIdAndIsDeletedFalse(UUID id, UUID userId);
+    Optional<RecordsModel> findByIdAndIsDeletedFalse(UUID id);
 
     @Query("""
     SELECT r FROM RecordsModel r
-    WHERE r.user.id IN :userIds
+    WHERE (:userIds IS NULL OR r.user.id IN :userIds)
     AND r.isDeleted = false
     AND (:type IS NULL OR r.type = :type)
     AND (:category IS NULL OR r.category = :category)
 """)
     Page<RecordsModel> findAllByFilters(
-            UUID userId,
+            List<UUID> userIds,
             RecordType type,
             Category category,
             Pageable pageable

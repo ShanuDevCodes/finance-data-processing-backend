@@ -5,6 +5,7 @@ import com.shanudevcodes.fdpacb.features.auth.data.dto.*;
 import com.shanudevcodes.fdpacb.features.auth.domain.service.AuthService;
 import com.shanudevcodes.fdpacb.security.rbac.role.Role;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,12 +17,9 @@ import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/auth")
+@RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
-
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
 
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<SignUpResponse>> signup(

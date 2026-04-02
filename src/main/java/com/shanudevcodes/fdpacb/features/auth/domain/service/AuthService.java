@@ -13,6 +13,7 @@ import com.shanudevcodes.fdpacb.security.jwt.service.JWTService;
 import com.shanudevcodes.fdpacb.security.rbac.role.Role;
 import com.shanudevcodes.fdpacb.security.rbac.role.Status;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -27,22 +28,12 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class AuthService {
     private final HashPassEncoder hashPassEncoder;
     private final UserRepo userRepo;
     private final JWTService jwtService;
     private final RefreshTokenRepo refreshTokenRepo;
-    AuthService(
-            HashPassEncoder hashPassEncoder,
-            UserRepo userRepo,
-            JWTService jwtService,
-            RefreshTokenRepo refreshTokenRepo
-    ){
-        this.hashPassEncoder = hashPassEncoder;
-        this.userRepo = userRepo;
-        this.jwtService = jwtService;
-        this.refreshTokenRepo = refreshTokenRepo;
-    }
 
     private boolean validateUserCredentials(String email, String password) {
         if (email.isBlank() || password.isBlank()) return false;
@@ -123,8 +114,12 @@ public class AuthService {
 
     @Transactional
     public TokenPair refresh (String refreshToken){
-        if (!jwtService.validateRefreshToken(refreshToken)){
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid Refresh Token");
+        try {
+            if (!jwtService.validateRefreshToken(refreshToken)) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid Refresh Token");
+            }
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh Token expired or invalid");
         }
         UUID userId = jwtService.getUserIdFromToken(refreshToken);
         if (userId == null){

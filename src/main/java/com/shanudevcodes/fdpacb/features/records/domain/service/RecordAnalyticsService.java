@@ -10,6 +10,7 @@ import com.shanudevcodes.fdpacb.features.records.data.repository.RecordsRepo;
 import com.shanudevcodes.fdpacb.features.users.data.entity.UserModel;
 import com.shanudevcodes.fdpacb.features.users.data.repository.UserRepo;
 import com.shanudevcodes.fdpacb.security.rbac.role.Role;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -20,16 +21,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class RecordAnalyticsService {
     private final RecordsRepo recordsRepo;
     private final UserRepo userRepo;
-    RecordAnalyticsService(
-            RecordsRepo recordsRepo,
-            UserRepo userRepo
-    ){
-        this.recordsRepo = recordsRepo;
-        this.userRepo = userRepo;
-    }
 
     public DashboardResponse getDashboard(UserModel user) {
         List<UUID> userIds = getAccessibleUserIds(user);

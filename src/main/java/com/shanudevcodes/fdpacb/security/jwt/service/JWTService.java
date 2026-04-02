@@ -48,7 +48,8 @@ public class JWTService {
         Date expiryDate = new Date(now.getTime() + expiry);
         return Jwts.builder()
                 .setId(UUID.randomUUID().toString())
-                .setSubject(user.getEmail())
+                .setSubject(user.getId().toString())
+                .claim("email", user.getEmail())
                 .claim("type", type.name())
                 .claim("roles", user.getRoles()
                         .stream()
@@ -98,15 +99,15 @@ public class JWTService {
     }
 
     public String extractUsername(String token) {
-        return parseAllClaims(token).getSubject();
+        return parseAllClaims(token).get("email", String.class);
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {
         try {
             Claims claims = parseAllClaims(token);
-            String username = claims.getSubject();
+            String email = claims.get("email", String.class);
             String tokenType = claims.get("type", String.class);
-            return username.equals(userDetails.getUsername())
+            return email.equals(userDetails.getUsername())
                     && JwtType.ACCESS_TOKEN.name().equals(tokenType)
                     && claims.getExpiration().after(new Date());
 
