@@ -1,6 +1,7 @@
 package com.shanudevcodes.fdpacb.features.users.data.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.shanudevcodes.fdpacb.security.rbac.role.Role;
 import com.shanudevcodes.fdpacb.security.rbac.role.Status;
 import jakarta.persistence.*;
@@ -24,6 +25,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"accountNonExpired", "accountNonLocked", "credentialsNonExpired", "enabled", "username", "authorities"})
 public class UserModel implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
