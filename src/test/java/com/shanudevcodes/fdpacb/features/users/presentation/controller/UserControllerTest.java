@@ -65,12 +65,12 @@ class UserControllerTest {
     void updateRoles_ReturnsOk() {
         UUID userId = UUID.randomUUID();
         UpdateRolesRequest roleReq = new UpdateRolesRequest();
-        roleReq.setRole(Role.ANALYST);
+        roleReq.setRole(Role.ANALYST.name());
 
         ResponseEntity<?> response = userController.updateRoles(userId, List.of(roleReq));
 
         assertEquals(200, response.getStatusCode().value());
-        verify(userService).changeRole(userId, List.of(Role.ANALYST));
+        verify(userService).changeRole(userId, List.of(Role.ANALYST.name()));
     }
 
     @Test
