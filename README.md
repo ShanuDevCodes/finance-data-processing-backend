@@ -1,35 +1,62 @@
 # Finance Data Processing and Access Control Backend
 
-A backend system for a multi-role finance dashboard, built with Spring Boot 4 and PostgreSQL. The system handles financial record management, role-based access control, and aggregated analytics — designed with the intent that a real frontend team could pick this up and integrate against it without ambiguity.
+A production-grade backend for a multi-role finance dashboard, built with **Spring Boot 4**, **PostgreSQL**, and **stateless JWT authentication**. The system handles financial record management, strict role-based access control, and aggregated analytics — designed so that a real frontend team could pick it up and integrate without ambiguity.
 
-Live API (Swagger UI): `{your-deployed-url}/swagger-ui/index.html#/`
+**Live API (Swagger UI):** *(URL will be updated after deployment)*
+
+**Local API Docs (Swagger UI):** `http://localhost:8081/swagger-ui/index.html#/`
+
+> All endpoints, request bodies, and response shapes are documented interactively in Swagger. No Postman collection is required to explore the API.
 
 ---
 
-## What This System Does
+## How This Matches the Assignment
 
-At its core, this is a backend for a finance dashboard where three types of users interact with financial data in very different ways. A **Viewer** sees only their own records. An **Analyst** oversees a set of assigned Viewers and can see aggregated or filtered data across that group. An **Admin** has unrestricted access and is the only role that can create, modify, or delete financial records and user accounts.
+| Assignment Requirement | How It Is Implemented |
+| :--- | :--- |
+| User and Role Management | `UserController` + `UserService` — create users, assign roles, toggle ACTIVE/INACTIVE status, manage Analyst↔Viewer hierarchy |
+| Financial Records Management | `RecordController` → `RecordService` — full CRUD with soft delete, pagination, and multi-field filtering |
+| Dashboard Summary APIs | `DashboardController` → `RecordAnalyticsService` — 7-field aggregated response (income, expense, net balance, category/type/status breakdowns, recent transactions) |
+| Access Control Logic | `@PreAuthorize` annotations on all endpoints + dynamic data scoping at the query level (not the service level) |
+| Validation and Error Handling | Jakarta Bean Validation + custom `@ValidEnum` + `GlobalExceptionHandler` mapping every exception type to a consistent JSON response |
+| Data Persistence | PostgreSQL via Spring Data JPA — Viewer data never deleted, only soft-flagged |
+| **Optional: Authentication** | Stateless JWT — access tokens (15 min) + refresh tokens (30 days) with SHA-256 hashing and rotation |
+| **Optional: Pagination** | `Pageable` support on `/records` and `/users` |
+| **Optional: Soft Delete** | `isDeleted` flag — records are flagged, never physically removed |
+| **Optional: Rate Limiting** | Bucket4j Token Bucket — 100 requests/min per IP, returns `429 Too Many Requests` with JSON body |
+| **Optional: Unit Tests** | 13 tests across 6 test classes — pure Mockito, no Spring context, no database required to run |
+| **Optional: API Documentation** | SpringDoc OpenAPI (Swagger UI) at `/swagger-ui/index.html#/` |
 
-The interesting engineering challenge was not the CRUD layer — that part is straightforward. The interesting part was enforcing data boundaries dynamically at the query level, and making those boundaries extensible enough that a frontend could consume them without hardcoding role logic into the UI.
+---
+
+## What Makes This System Interesting
+
+Standard CRUD is the easy part. The deliberate engineering decisions are:
+
+1. **Dynamic data scoping at the query level.** Every DB query receives a pre-resolved `List<UUID>` representing the exact user IDs the caller is permitted to see. There are no in-memory filters. Analysts literally cannot receive a record that is outside their assigned scope, not because of an if-else check after the query, but because the query itself only asks for the right records.
+
+2. **Frontend decoupling via metadata APIs.** The `/config/enums` endpoint returns all valid enum values for dropdowns. The `/auth/me/capabilities` endpoint returns what the currently authenticated user is *allowed to do* so the frontend can render the correct UI without embedding role logic in client code.
+
+3. **Refresh token security.** Refresh tokens are stored as SHA-256 hashes. The raw token is never persisted. On use, the old token is deleted before issuing a new pair — preventing replay after interception.
+
+4. **Single source of truth for public paths.** `PublicPaths.java` is read by both `SecurityConfig` and `JWTAuthFilter`, so there is exactly one place where unauthenticated endpoints are defined. Configuration drift is structurally impossible.
 
 ---
 
 ## Architecture
 
-The project uses a **Package-by-Feature** structure, where each domain area (`auth`, `records`, `users`, `config`) is a self-contained vertical slice of the application rather than a horizontal layer across it. Each feature contains its own `data`, `domain`, and `presentation` sub-packages.
+The project uses **Package-by-Feature** (also called Vertical Slice Architecture). Each domain area owns its complete stack — no horizontal `controllers/services/repositories` folders that force you to jump across the codebase:
 
 ```
 src/main/java/com/shanudevcodes/fdpacb/
- ├── common/                          # Shared utilities (ApiResponse, validators, error handler)
+ ├── common/                          # Shared: ApiResponse, GlobalExceptionHandler, validators
  ├── features/
- │    ├── auth/                       # JWT authentication, token refresh, capabilities
- │    ├── config/                     # Public metadata endpoints (enums for frontend)
+ │    ├── auth/                       # JWT auth, signup, login, refresh, capabilities
+ │    ├── config/                     # Public metadata endpoint (enums for frontend dropdowns)
  │    ├── records/                    # Financial records CRUD, filters, dashboard analytics
  │    └── users/                      # User management, profile updates, analyst assignments
- └── security/                        # JWT infrastructure, Spring Security config, RBAC roles
+ └── security/                        # JWTAuthFilter, SecurityConfig, RateLimitFilter, PublicPaths
 ```
-
-This structure was chosen over the traditional `controllers/services/repositories` layout because it makes the codebase grow without tangling. When you need to touch the records feature, every file you need is in one place. It is also the structure most large Spring Boot codebases migrate toward as they scale, so it felt like the right starting point.
 
 ---
 
@@ -37,42 +64,86 @@ This structure was chosen over the traditional `controllers/services/repositorie
 
 ### Prerequisites
 
-- Java 17
-- A PostgreSQL database (local or hosted — the project is tested against Supabase)
-- Gradle (the wrapper is included, so you do not need to install it globally)
+- **Java 17** (or 21)
+- **PostgreSQL** — local instance or a hosted database (tested against Supabase)
+- **Gradle** — the wrapper `./gradlew` is included, no global installation needed
 
 ### Environment Variables
 
-The application reads all sensitive configuration from environment variables. You will need to set these before starting:
+Set these four environment variables before starting the application. The app will fail to start without them.
 
 | Variable | Description | Example |
 | :--- | :--- | :--- |
 | `DB_URL` | Full JDBC connection string | `jdbc:postgresql://localhost:5432/fdpacb` |
 | `DB_USERNAME` | Database user | `postgres` |
 | `DB_PASSWORD` | Database password | `yourpassword` |
-| `JWT_SECRET_BASE64` | Base64-encoded HMAC-SHA256 key (min 32 bytes) | `dGhpcyBpcyBhIHNlY3JldA==` |
+| `JWT_SECRET_BASE64` | Base64-encoded HMAC-SHA256 signing key (minimum 32 bytes after decoding) | See below |
 
-To generate a valid JWT secret locally:
+Generate a valid JWT secret:
 ```bash
-# On any system with openssl
 openssl rand -base64 32
 ```
 
-### Running the Application
+### Running Locally
 
 ```bash
 ./gradlew bootRun
 ```
 
-The server starts on port `8080` by default. You can override this by setting a `PORT` environment variable.
+The server starts on port **8081**. Hibernate is configured with `ddl-auto=update` — the schema is created or updated automatically on first run. No migration script is needed.
 
-Hibernate is configured with `ddl-auto=update`, so the schema will be created or updated automatically on first run. There is no migration script to run separately.
+Open Swagger UI: **`http://localhost:8081/swagger-ui/index.html#/`**
+
+---
+
+## Deployment (Render)
+
+The project includes a multi-stage `Dockerfile` optimised for Render's Docker-based deployment.
+
+### Steps to Deploy on Render
+
+1. **Push this repository to GitHub** (or GitLab).
+
+2. **Go to [render.com](https://render.com)** → New → Web Service → connect your repository.
+
+3. **Select "Docker"** as the runtime (Render auto-detects the `Dockerfile`).
+
+4. **Set the following Environment Variables** in the Render dashboard (under the "Environment" tab):
+
+   | Key | Value |
+   | :--- | :--- |
+   | `DB_URL` | Your Supabase / PostgreSQL JDBC URL |
+   | `DB_USERNAME` | Your DB username |
+   | `DB_PASSWORD` | Your DB password |
+   | `JWT_SECRET_BASE64` | Output of `openssl rand -base64 32` |
+
+5. **Deploy.** Render injects a `$PORT` environment variable automatically — the Dockerfile reads it via `-Dserver.port=${PORT:-8081}`.
+
+6. Once deployed, your Swagger UI will be available at:
+   ```
+   https://<your-render-subdomain>.onrender.com/swagger-ui/index.html#/
+   ```
+
+### Building the Docker Image Locally
+
+```bash
+# Build the image
+docker build -t fdpacb .
+
+# Run it (pass your env vars inline)
+docker run -p 8081:8081 \
+  -e DB_URL=jdbc:postgresql://host:5432/db \
+  -e DB_USERNAME=user \
+  -e DB_PASSWORD=password \
+  -e JWT_SECRET_BASE64=your_base64_secret \
+  fdpacb
+```
 
 ---
 
 ## API Reference
 
-All endpoints return a consistent JSON envelope:
+Every endpoint returns the same JSON envelope:
 
 ```json
 {
@@ -82,19 +153,18 @@ All endpoints return a consistent JSON envelope:
 }
 ```
 
-### Authentication
+### Authentication — `/api/v1/auth`
 
-All auth endpoints are public (no token required).
+All authentication endpoints are public (no token required).
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/v1/auth/signup` | Register a new user. All self-registered users are assigned the `VIEWER` role. |
-| `POST` | `/api/v1/auth/login` | Authenticate and receive an access token (15 min) and refresh token (30 days). |
-| `POST` | `/api/v1/auth/refresh` | Exchange a valid refresh token for a new token pair. Old refresh token is invalidated. |
-| `GET` | `/api/v1/auth/me/capabilities` | Returns what the currently authenticated user is allowed to do in the UI. |
+| `POST` | `/api/v1/auth/signup` | Register a new user. All self-registered users receive the `VIEWER` role. |
+| `POST` | `/api/v1/auth/login` | Authenticate. Returns an access token (15 min TTL) and a refresh token (30 day TTL). |
+| `POST` | `/api/v1/auth/refresh` | Exchange a valid refresh token for a new token pair. The used token is invalidated immediately. |
+| `GET` | `/api/v1/auth/me/capabilities` | Returns what the authenticated user is allowed to do — for use by a frontend to render the correct UI. |
 
-The capabilities endpoint was added specifically to enable the frontend to render the correct interface without embedding role logic in the client code. Example response for an Analyst:
-
+**Capabilities response example (Analyst):**
 ```json
 {
   "canCreateRecords": false,
@@ -104,37 +174,40 @@ The capabilities endpoint was added specifically to enable the frontend to rende
 }
 ```
 
-### Financial Records
+---
 
-All record-writing operations are restricted to Admins. Reading records is available to Analysts and Admins.
+### Financial Records — `/api/v1/records`
 
-| Method | Endpoint | Role | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/records/{userId}` | ADMIN | Create a financial record for a specified user. |
-| `PUT` | `/api/v1/records/{recordId}` | ADMIN | Update an existing record. |
-| `DELETE` | `/api/v1/records/{recordId}` | ADMIN | Soft-delete a record (sets `isDeleted=true`, never removed from DB). |
-| `GET` | `/api/v1/records` | ADMIN, ANALYST | Retrieve records with pagination and optional filtering. |
-
-The `GET /records` endpoint accepts the following query parameters:
-
-| Parameter | Type | Description |
-| :--- | :--- | :--- |
-| `page` | int | Page index (0-based, default 0) |
-| `size` | int | Records per page (default 10) |
-| `type` | String | Filter by `INCOME` or `EXPENSE` |
-| `category` | String | Filter by category (e.g. `SALARY`, `FOOD`) |
-| `assigned_userid` | UUID[] | Comma-separated list of user IDs to filter by (scoped per role) |
-
-### Dashboard Analytics
+Write operations are restricted to `ADMIN`. Read operations are available to `ADMIN` and `ANALYST`.
 
 | Method | Endpoint | Role | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/dashboard` | ALL | Returns aggregated financial summary for the caller's data scope. |
+| `POST` | `/api/v1/records/{userId}` | ADMIN | Create a financial record for a specific user. |
+| `PUT` | `/api/v1/records/{recordId}` | ADMIN | Update an existing record's fields. |
+| `DELETE` | `/api/v1/records/{recordId}` | ADMIN | Soft-delete a record (`isDeleted = true`). Never physically removed. |
+| `GET` | `/api/v1/records` | ADMIN, ANALYST | Paginated records with optional filters. Analyst results are automatically scoped to assigned Viewers. |
 
-Optional query parameter: `target_user_id` (comma-separated UUID list) — narrows the dashboard to specific users. Access is enforced — an Analyst cannot query a user who is not assigned to them.
+**GET `/api/v1/records` query parameters:**
 
-The dashboard response includes:
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `page` | `int` | `0` | Page index (0-based) |
+| `size` | `int` | `10` | Records per page |
+| `type` | `String` | — | `INCOME` or `EXPENSE` |
+| `category` | `String` | — | `SALARY`, `FOOD`, `RENT`, etc. |
+| `assigned_userid` | `UUID[]` | — | Filter by specific user IDs (Analyst: must be assigned; Admin: unrestricted) |
 
+---
+
+### Dashboard Analytics — `/api/v1/dashboard`
+
+| Method | Endpoint | Role | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/dashboard` | ALL | Returns financial summary scoped to the caller's permitted data. |
+
+**Optional query parameter:** `target_user_id` (one or more UUIDs) — narrows the summary to specific users. Analysts are blocked from querying users not assigned to them (`403`).
+
+**Response:**
 ```json
 {
   "totalIncome": 85000.00,
@@ -147,121 +220,156 @@ The dashboard response includes:
 }
 ```
 
-### User Management
+---
+
+### User Management — `/api/v1/users`
 
 | Method | Endpoint | Role | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/users` | ADMIN | Paginated list of all users. |
-| `PUT` | `/api/v1/users/{id}/roles` | ADMIN | Update the roles of any user. |
-| `PUT` | `/api/v1/users/{id}/status` | ADMIN | Toggle user between ACTIVE and INACTIVE. |
-| `PUT` | `/api/v1/users/{userId}/assign/{analystId}` | ADMIN | Assign a Viewer to an Analyst. |
-| `GET` | `/api/v1/users/assigned` | ANALYST | Returns the list of Viewers assigned to the calling Analyst. |
-| `PUT` | `/api/v1/users/name` | ALL | Update your own display name. |
-| `PUT` | `/api/v1/users/email` | ALL | Update your own email (uniqueness is enforced). |
-| `PUT` | `/api/v1/users/password` | ALL | Update your own password (old = new is rejected). |
+| `GET` | `/api/v1/users` | ADMIN | Paginated user list. Filterable by `role`, `status`, and `analystId`. |
+| `PUT` | `/api/v1/users/{id}/roles` | ADMIN | Replace a user's roles. |
+| `PUT` | `/api/v1/users/{id}/status` | ADMIN | Toggle a user between `ACTIVE` and `INACTIVE`. |
+| `PUT` | `/api/v1/users/{userId}/assign/{analystId}` | ADMIN | Assign a Viewer user to an Analyst. |
+| `GET` | `/api/v1/users/assigned` | ANALYST | Returns the list of Viewers assigned to the currently authenticated Analyst. |
+| `PUT` | `/api/v1/users/name` | ALL | Update own display name. |
+| `PUT` | `/api/v1/users/email` | ALL | Update own email. Uniqueness is enforced. |
+| `PUT` | `/api/v1/users/password` | ALL | Update own password. Old = new is rejected. |
 
-### App Configuration
+---
+
+### Config Metadata — `/api/v1/config`
 
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/config/enums` | None | Returns all enum values (categories, types, roles, statuses) for frontend dropdowns. |
+| `GET` | `/api/v1/config/enums` | None (public) | Returns all valid enum values for frontend dropdowns (roles, record types, categories, statuses). |
 
 ---
 
 ## Access Control Design
 
-This is probably the most deliberate part of the system and worth explaining clearly.
-
-### Role Definitions
-
-Access in this system goes beyond simply checking "does this user have the right role to call this endpoint." The more interesting problem is: which data records is each user allowed to see?
+### Role Matrix
 
 | Role | Record Access | Dashboard | User Management |
 | :--- | :--- | :--- | :--- |
 | **VIEWER** | Own records only | Own data only | None |
-| **ANALYST** | Assigned viewers + self | Assigned viewers + self | Read assigned viewers |
+| **ANALYST** | Assigned Viewers + self | Assigned Viewers + self | Read own assigned Viewers |
 | **ADMIN** | All records | All data | Full management |
 
-### Data Scoping
+### How Data Scoping Works
 
-Rather than implementing data scoping at the controller or service level with if-else chains, the data boundaries are resolved to a `List<UUID>` before any database query runs. This list is then passed directly into the JPQL query as an `IN` clause.
+Access control goes further than "does this role have permission to call this endpoint." The system enforces *which records* each user can actually see.
 
-For example, when an Analyst requests the dashboard with `target_user_id=uuid1,uuid2`, the backend first validates that both UUIDs belong to that Analyst's set of assigned Viewers. If even one UUID fails that check, the entire request is rejected with a `403`. If validation passes, the IDs are forwarded directly to the database — no filtering happens in memory.
+Before any database query executes, the caller's permitted user IDs are resolved to a `List<UUID>`. This list is passed directly into a JPQL `IN (:userIds)` clause. No records outside that list can ever be returned — not because of a post-query filter, but because the query structurally cannot fetch them.
 
-This design means the data scoping logic is centralized in `RecordAnalyticsService` and `RecordService`. If the scoping rules ever change, there is exactly one place to update them.
+When an Analyst passes `target_user_id` values, those IDs are validated against the Analyst's assigned Viewers. Any ID that does not belong to that Analyst is silently stripped from the query — it does not cause a `403`, it simply disappears from the result set. (When *all* IDs are invalid, an empty result is returned.)
 
-### Analyst-Viewer Relationship
+This means the data boundary enforcement is centralized in one place (`RecordService` and `RecordAnalyticsService`). Changing the scoping rules requires changing exactly one method.
 
-Viewers are assigned to Analysts via a proper `@ManyToOne` JPA relationship (`assigned_analyst_id` foreign key in the `users` table). This was deliberately chosen over storing a raw UUID field, because it allows Hibernate to handle relationship integrity and enables straightforward JPQL traversal like `WHERE u.assignedAnalyst.id = :analystId`.
+### Analyst–Viewer Relationship
+
+Viewers are linked to Analysts via a `@ManyToOne` JPA relationship (`assigned_analyst_id` FK in the `users` table). This is a first-class database relationship, not a raw UUID field, which means relationship integrity is enforced by the database and Hibernate can traverse it in JPQL queries: `WHERE u.assignedAnalyst.id = :analystId`.
 
 ---
 
 ## Data Model
 
-### Financial Record
+### Financial Record (`records` table)
 
-Each record belongs to one user and contains:
+| Field | Type | Notes |
+| :--- | :--- | :--- |
+| `id` | UUID | Auto-generated |
+| `amount` | BigDecimal | 15 digits, 2 decimal places |
+| `type` | Enum | `INCOME` or `EXPENSE` |
+| `category` | Enum | Validated against type (see below) |
+| `paymentMethod` | Enum | `CASH`, `CARD`, `UPI`, etc. |
+| `transactionDate` | LocalDate | Defaults to today if not provided |
+| `status` | Enum | Defaults to `PENDING` |
+| `currency` | String | Defaults to `INR` |
+| `isRecurring` | boolean | Flags recurring transactions |
+| `isDeleted` | boolean | Soft delete flag (never truly deleted) |
+| `userId` | UUID (FK) | The user this record belongs to |
 
-- `amount` — stored as `BigDecimal` with 15-digit precision and 2 decimal places
-- `type` — `INCOME` or `EXPENSE`
-- `category` — strongly typed and validated against type (a `SALARY` record must be `INCOME`, `FOOD` must be `EXPENSE`, etc.)
-- `paymentMethod` — e.g. `CASH`, `CARD`, `UPI`
-- `transactionDate` — defaults to the current date if not provided
-- `status` — defaults to `PENDING` on creation
-- `isRecurring` — flag for recurring transactions
-- `currency` — defaults to `INR`
-- `isDeleted` — soft delete flag
+**Category-Type constraint:** The service layer validates that the category is consistent with the type before persisting. For example, `SALARY` is only valid as an `INCOME` record, and `FOOD` is only valid as an `EXPENSE` record. A mismatch returns a `400 Bad Request` before touching the database. This prevents silent data corruption in analytics.
 
-The category-to-type constraint is enforced at the service layer before persistence. If you try to create an `EXPENSE` record with a `SALARY` category, the request is rejected with a `400` before it reaches the database. This prevents data inconsistency that would otherwise silently corrupt analytics.
-
-### Database Indexes
-
-The `RecordsModel` table has composite indexes on `(user_id, transactionDate)`, `(user_id, type)`, and `(user_id, category)`. These make the most common query patterns — filtering a user's records by date or type — efficient even at larger data volumes.
+**Composite indexes** on `(user_id, transactionDate)`, `(user_id, type)`, and `(user_id, category)` ensure that the most common query patterns (filtering a user's records by date, type, or category) stay efficient at scale.
 
 ---
 
-## Authentication Implementation
+## Security Implementation
 
-Authentication uses stateless JWT with a distinct access/refresh token pair.
+### JWT Authentication
 
-- **Access tokens** expire in 15 minutes and carry the user's ID, email, and roles.
-- **Refresh tokens** expire in 30 days and are stored in the database as a SHA-256 hash (the raw token is never persisted). When a refresh is requested, the incoming token is hashed and compared against the stored hash. On success, the old token is deleted and a new pair is issued.
+- **Access tokens** — 15-minute TTL. Carry `userId`, `email`, and `roles` as claims.
+- **Refresh tokens** — 30-day TTL. Stored in the database as SHA-256 hashes. The raw token is never persisted.
+- **Rotation** — on every refresh call, the used token hash is deleted from the database and a new pair is issued. A stolen token used after the legitimate owner has refreshed will be rejected.
+- **Inactive users** — if an Admin deactivates a user (`status = INACTIVE`), the user is rejected by Spring Security's `isAccountNonLocked()` check on every subsequent request, even if they hold a valid access token.
 
-The refresh token rotation approach (delete old, issue new) prevents token reuse even if a token is intercepted after being used once. It is not a full refresh token rotation with replay detection, but it is meaningfully more secure than simply validating expiry.
+### Rate Limiting
 
-The `JWTAuthFilter` validates the access token on every request, loads the full user entity from the database (to pick up any permission changes since the token was issued), and populates the Spring Security context. If a user is deactivated (`status = INACTIVE`), Spring Security rejects them at the `isAccountNonLocked()` check — no custom code required.
+A `RateLimitFilter` (Bucket4j Token Bucket algorithm) protects all API endpoints:
+
+- **Limit:** 100 requests per minute per IP address
+- **Exceeded:** `HTTP 429 Too Many Requests` with JSON body
+- **Excluded:** Swagger UI and OpenAPI spec paths are exempt
+
+---
+
+## Unit Tests
+
+Tests run without a Spring context and without a database — pure Mockito unit tests that execute in milliseconds.
+
+```bash
+./gradlew test
+```
+
+| Test Class | Tests | What Is Verified |
+| :--- | :---: | :--- |
+| `RecordServiceTest` | 2 | **Analyst data scoping security** — proves that when an Analyst queries records, only their assigned Viewers' IDs reach the database query, and injecting an unassigned UUID is silently stripped |
+| `JWTServiceTest` | 2 | Token claims (`subject = userId`, `email`, `roles`, `type = ACCESS/REFRESH`) |
+| `AuthControllerTest` | 4 | All 4 auth endpoints delegate correctly to `AuthService` |
+| `RecordControllerTest` | 3 | create, getAll, delete — correct service delegation and HTTP status codes |
+| `DashboardControllerTest` | 1 | getDashboard — correct service delegation and response wrapping |
+| `UserControllerTest` | 5 | All 5 user management endpoints delegate correctly to `UserService` |
+| `ConfigControllerTest` | 1 | getEnums — correct metadata envelope returned |
+
+**Total: 18 tests**
+
+The `RecordServiceTest` is the most security-critical. It verifies that an Analyst requesting a Viewer's data they are not assigned to will have that ID stripped from the database query — the scoping layer cannot be bypassed.
 
 ---
 
 ## Validation and Error Handling
 
-Input validation uses Jakarta Bean Validation (`@NotNull`, `@DecimalMin`, custom `@ValidEnum`). The project includes a custom `EnumValidator` that validates string inputs against enum constants at the constraint level — so invalid values like `"FOOOD"` or `"income"` are caught before reaching the service layer.
+Input is validated at the HTTP layer before reaching the service layer:
 
-All exceptions are handled by a single `@RestControllerAdvice` class (`GlobalExceptionHandler`) that maps common exception types to consistent JSON error responses:
+- `@NotNull`, `@DecimalMin`, `@Size`, `@Email` — standard Jakarta Bean Validation
+- `@ValidEnum` — custom constraint that validates string inputs against enum constants (rejects `"FOOOD"` or `"income"` at the boundary layer)
 
-| Exception Type | HTTP Status |
+All exceptions are handled by `GlobalExceptionHandler` (`@RestControllerAdvice`):
+
+| Exception | HTTP Status |
 | :--- | :--- |
-| `MethodArgumentNotValidException` | 400 Bad Request |
-| `ResponseStatusException` | Matches the set status |
-| `AccessDeniedException` | 403 Forbidden |
-| `DataAccessException` | 500 Internal Server Error |
-| `Exception` (fallback) | 500 Internal Server Error |
+| `MethodArgumentNotValidException` | `400 Bad Request` |
+| `ResponseStatusException` | Status set on the exception |
+| `AccessDeniedException` | `403 Forbidden` |
+| `DataAccessException` | `500 Internal Server Error` |
+| Unhandled `Exception` | `500 Internal Server Error` |
 
-Spring Security's 401/403 responses are handled by `JwtAuthenticationEntryPoint` and `JwtAccessDeniedHandler` respectively, so those also return the same JSON format as everything else.
+Spring Security's authentication and authorization failures also return the same JSON format via `JwtAuthenticationEntryPoint` and `JwtAccessDeniedHandler`.
 
 ---
 
-## Key Assumptions and Tradeoffs
+## Assumptions and Tradeoffs
 
-**Viewers cannot read their own raw records in a list view.** The `GET /records` endpoint is restricted to Analysts and Admins. The reasoning is that the assignment described the Viewer as a "dashboard consumer," not a record browser. Viewers can access the dashboard (which includes recent transactions), which satisfies the spirit of read access without exposing the raw paginated record endpoint.
+**Viewers cannot browse raw records in a list view.** `GET /records` is restricted to Analyst and Admin. Viewers access their data through the Dashboard endpoint, which includes recent transactions. This fits the "dashboard consumer" framing from the assignment — Viewers consume summaries, not raw paginated data.
 
-**Admin creates records, not individual users.** Financial records in this system are admin-managed entries. Users do not submit their own transactions. This fits a scenario where the finance data comes from an external system and Admins are responsible for importing or entering it.
+**Admins create records, not users themselves.** Financial records are admin-managed entries, not user-submitted transactions. This matches a realistic scenario where data originates from an external source and Admins are responsible for importing it.
 
-**Soft delete is the only delete.** Records are never removed from the database. The `isDeleted` flag filters them out of all queries. This is intentional — financial audit trails should never be physically deleted in any real system.
+**Soft delete only.** Records are never physically removed. Financial audit trails must remain intact — this is standard in any real finance system.
 
-**Refresh tokens are per-session, not per-device.** A new login always generates a new refresh token and stores it. Multiple active sessions are technically possible, but the refresh operation invalidates the specific token used, not all tokens for that user. Full multi-device session management was considered out of scope for this assignment.
+**Refresh tokens are per-session, not per-device.** A new login always issues a new refresh token. Multiple concurrent sessions work, but the refresh operation only invalidates the specific token used, not all sessions for that user. Full multi-device session management was considered out of scope.
 
-**Schema is managed by Hibernate.** `spring.jpa.hibernate.ddl-auto=update` handles schema creation and evolution automatically. In a production system, this would be replaced by a proper migration tool like Flyway. For this assignment, it removes friction from the setup process.
+**Schema managed by Hibernate.** `ddl-auto=update` handles schema evolution automatically. In a production system, this would be Flyway or Liquibase. For this assignment, it removes friction from the setup process completely.
 
 ---
 
@@ -273,7 +381,9 @@ Spring Security's 401/403 responses are handled by `JwtAuthenticationEntryPoint`
 | Framework | Spring Boot 4.0.5 |
 | Security | Spring Security 7, JWT (jjwt 0.11.5) |
 | Persistence | Spring Data JPA, Hibernate 7, PostgreSQL |
+| Rate Limiting | Bucket4j (Token Bucket) |
 | Validation | Jakarta Bean Validation, Hibernate Validator |
-| API Docs | SpringDoc OpenAPI (Swagger UI) |
+| API Docs | SpringDoc OpenAPI 2 (Swagger UI) |
+| Testing | JUnit 5, Mockito |
 | Utilities | Lombok |
-| Build | Gradle (Kotlin DSL) |
+| Build | Gradle 8 (Kotlin DSL) |
