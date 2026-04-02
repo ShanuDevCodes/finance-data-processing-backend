@@ -10,6 +10,7 @@ import com.shanudevcodes.fdpacb.features.records.data.repository.RecordsRepo;
 import com.shanudevcodes.fdpacb.features.users.data.entity.UserModel;
 import com.shanudevcodes.fdpacb.features.users.data.repository.UserRepo;
 import com.shanudevcodes.fdpacb.security.rbac.role.Role;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,7 +21,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -29,6 +29,7 @@ public class RecordService {
     private final RecordsRepo recordsRepo;
     private final UserRepo userRepo;
 
+    @Transactional
     public void createRecord(CreateRecordRequest request, UUID userID){
         UserModel user = userRepo.findById(userID).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         RecordType type = RecordType.valueOf(request.getType().toUpperCase());
@@ -50,6 +51,7 @@ public class RecordService {
         recordsRepo.save(newRecord);
     }
 
+    @Transactional
     public void updateRecord(UUID recordId, UpdateRecordRequest request){
         RecordsModel record = recordsRepo.findByIdAndIsDeletedFalse(recordId).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Record not found")
@@ -87,6 +89,7 @@ public class RecordService {
         recordsRepo.save(record);
     }
 
+    @Transactional
     public void deleteRecord(UUID recordId){
         RecordsModel record = recordsRepo.findByIdAndIsDeletedFalse(recordId).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Record not found")

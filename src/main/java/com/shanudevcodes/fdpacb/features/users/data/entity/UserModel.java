@@ -8,10 +8,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
@@ -42,7 +44,9 @@ public class UserModel implements UserDetails {
     private Set<Role> roles;
     @Enumerated(EnumType.STRING)
     private Status status;
-
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt;
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_analyst_id")

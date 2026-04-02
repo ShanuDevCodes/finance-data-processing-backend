@@ -3,15 +3,14 @@ package com.shanudevcodes.fdpacb.features.auth.presentation.controller;
 import com.shanudevcodes.fdpacb.common.exception.dto.ApiResponse;
 import com.shanudevcodes.fdpacb.features.auth.data.dto.*;
 import com.shanudevcodes.fdpacb.features.auth.domain.service.AuthService;
+import com.shanudevcodes.fdpacb.features.users.data.entity.UserModel;
 import com.shanudevcodes.fdpacb.security.rbac.role.Role;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Set;
 
@@ -67,4 +66,14 @@ public class AuthController {
         );
     }
 
+    @GetMapping("/me/capabilities")
+    public ResponseEntity<ApiResponse<CapabilitiesResponse>> getCapabilities(
+            @AuthenticationPrincipal UserModel user
+    ) {
+        return ResponseEntity.ok(ApiResponse.<CapabilitiesResponse>builder()
+                .status("success")
+                .message("Capabilities fetched contextually via Authentication context")
+                .data(authService.getCapabilities(user))
+                .build());
+    }
 }

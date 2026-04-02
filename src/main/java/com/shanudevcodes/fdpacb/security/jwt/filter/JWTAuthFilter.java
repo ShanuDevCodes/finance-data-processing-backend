@@ -1,5 +1,6 @@
 package com.shanudevcodes.fdpacb.security.jwt.filter;
 
+import com.shanudevcodes.fdpacb.security.config.PublicPaths;
 import com.shanudevcodes.fdpacb.security.jwt.service.JWTService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -11,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -50,6 +52,11 @@ public class JWTAuthFilter extends OncePerRequestFilter {
     }
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return request.getServletPath().startsWith("/api/v1/auth");
+        AntPathMatcher matcher = new AntPathMatcher();
+        String path = request.getServletPath();
+        for (String pattern : PublicPaths.PATTERNS) {
+            if (matcher.match(pattern, path)) return true;
+        }
+        return false;
     }
 }

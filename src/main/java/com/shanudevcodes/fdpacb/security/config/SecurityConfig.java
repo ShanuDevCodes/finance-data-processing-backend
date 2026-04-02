@@ -1,6 +1,5 @@
 package com.shanudevcodes.fdpacb.security.config;
 
-import com.shanudevcodes.fdpacb.features.users.data.repository.UserRepo;
 import com.shanudevcodes.fdpacb.security.jwt.auth.JwtAccessDeniedHandler;
 import com.shanudevcodes.fdpacb.security.jwt.auth.JwtAuthenticationEntryPoint;
 import com.shanudevcodes.fdpacb.security.jwt.filter.JWTAuthFilter;
@@ -24,7 +23,6 @@ public class SecurityConfig {
     private final JWTAuthFilter jwtAuthFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
-    private final UserRepo userRepo;
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) {
@@ -40,9 +38,7 @@ public class SecurityConfig {
                                 .accessDeniedHandler(jwtAccessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/v1/auth/**"
-                        ).permitAll()
+                        .requestMatchers(PublicPaths.PATTERNS).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(
