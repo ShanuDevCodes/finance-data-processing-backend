@@ -7,6 +7,7 @@ import com.shanudevcodes.fdpacb.features.records.data.entity.RecordsModel;
 import com.shanudevcodes.fdpacb.features.records.domain.service.RecordService;
 import com.shanudevcodes.fdpacb.features.users.data.entity.UserModel;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,23 +15,22 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/records")
+@RequiredArgsConstructor
 public class RecordController {
     private final RecordService recordService;
-    RecordController(RecordService recordService){
-        this.recordService = recordService;
-    }
 
     @PreAuthorize("hasAnyRole('ADMIN')")
-    @PostMapping
+    @PostMapping("/{userId}")
     public ResponseEntity<ApiResponse<String>> create(
             @Valid @RequestBody CreateRecordRequest request,
-            @AuthenticationPrincipal UserModel user
+            @PathVariable UUID userId
     ){
-        recordService.createRecord(request, user);
+        recordService.createRecord(request, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 ApiResponse.<String>builder()
                         .status("success")
@@ -43,10 +43,9 @@ public class RecordController {
     @PostMapping("/{recordId}")
     public ResponseEntity<ApiResponse<String>> update(
             @PathVariable UUID recordId,
-            @Valid @RequestBody UpdateRecordRequest request,
-            @AuthenticationPrincipal UserModel user
+            @Valid @RequestBody UpdateRecordRequest request
     ){
-        recordService.updateRecord(recordId, request, user);
+        recordService.updateRecord(recordId, request);
         return ResponseEntity.ok(
                 ApiResponse.<String>builder()
                         .status("success")
@@ -62,10 +61,11 @@ public class RecordController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false) String category
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) List<UUID> assigned_userid
     ) {
         Page<RecordsModel> records = recordService.getAllRecords(
-                user, page, size, type, category
+                user, page, size, type, category, assigned_userid
         );
 
         return ResponseEntity.ok(
@@ -80,10 +80,9 @@ public class RecordController {
     @PreAuthorize("hasAnyRole('ADMIN')")
     @DeleteMapping("/{recordId}")
     public ResponseEntity<ApiResponse<String>> delete(
-            @PathVariable UUID recordId,
-            @AuthenticationPrincipal UserModel user
+            @PathVariable UUID recordId
     ) {
-        recordService.deleteRecord(recordId,user);
+        recordService.deleteRecord(recordId);
         return ResponseEntity.ok(
                 ApiResponse.<String>builder()
                         .status("success")

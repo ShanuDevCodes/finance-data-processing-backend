@@ -59,7 +59,7 @@ public class RecordsModel {
     private Instant createdAt;
     @UpdateTimestamp
     private Instant updatedAt;
-    private Boolean isDeleted = false;
+    private Boolean isDeleted;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private UserModel user;
@@ -70,6 +70,9 @@ public class RecordsModel {
         }
         if (this.status == null) {
             this.status = RecordStatus.PENDING;
+        }
+        if (this.isDeleted == null){
+            this.isDeleted = false;
         }
     }
 }
