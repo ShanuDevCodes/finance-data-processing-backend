@@ -1,6 +1,6 @@
 # Finance Data Processing and Access Control Backend
 
-A production-grade backend for a multi-role finance dashboard, built with **Spring Boot 4**, **PostgreSQL**, and **stateless JWT authentication**. The system handles financial record management, strict role-based access control, and aggregated analytics, designed so that a real frontend team could pick it up and integrate without ambiguity.
+A backend for a multi-role finance dashboard built with Spring Boot 4, PostgreSQL, and stateless JWT authentication. The system handles financial record management, role-based access control, and aggregated analytics, designed so a frontend team could pick it up and integrate without ambiguity.
 
 **Live API (Swagger UI):** [https://finance-data-processing-backend-ar27.onrender.com/swagger-ui/index.html#/](https://finance-data-processing-backend-ar27.onrender.com/swagger-ui/index.html#/)
 
@@ -17,7 +17,7 @@ A production-grade backend for a multi-role finance dashboard, built with **Spri
 | Dashboard Summary APIs | `DashboardController` -> `RecordAnalyticsService` - 7-field aggregated response (income, expense, net balance, category/type/status breakdowns, recent transactions) |
 | Access Control Logic | `@PreAuthorize` annotations on all endpoints, plus dynamic data scoping at the query level (not the service level) |
 | Validation and Error Handling | Jakarta Bean Validation + custom `@ValidEnum` + `GlobalExceptionHandler` mapping every exception type to a consistent JSON response |
-| Data Persistence | PostgreSQL via Spring Data JPA. Viewer data is never deleted, only soft-flagged |
+| Data Persistence | PostgreSQL via Spring Data JPA. Records are never deleted, only soft-flagged |
 | **Optional: Authentication** | Stateless JWT - access tokens (15 min) + refresh tokens (30 days) with SHA-256 hashing and rotation |
 | **Optional: Pagination** | `Pageable` support on `/records` and `/users` |
 | **Optional: Soft Delete** | `isDeleted` flag. Records are flagged, never physically removed |
@@ -33,17 +33,19 @@ Standard CRUD is the easy part. The deliberate engineering decisions are:
 
 1. **Dynamic data scoping at the query level.** Every DB query receives a pre-resolved `List<UUID>` representing the exact user IDs the caller is permitted to see. There are no in-memory filters. Analysts literally cannot receive a record that is outside their assigned scope, not because of an if-else check after the query, but because the query itself only asks for the right records.
 
-2. **Frontend decoupling via metadata APIs.** The `/config/enums` endpoint returns all valid enum values for dropdowns. The `/auth/me/capabilities` endpoint returns what the currently authenticated user is *allowed to do*, so the frontend can render the correct UI without embedding role logic in client code.
+2. **Frontend decoupling via metadata APIs.** The `/config/enums` endpoint returns all valid enum values for dropdowns. The `/auth/me/capabilities` endpoint returns what the currently authenticated user is allowed to do, so the frontend can render the correct UI without embedding role logic in client code.
 
 3. **Refresh token security.** Refresh tokens are stored as SHA-256 hashes. The raw token is never persisted. On use, the old token is deleted before issuing a new pair, preventing replay after interception.
 
 4. **Single source of truth for public paths.** `PublicPaths.java` is read by both `SecurityConfig` and `JWTAuthFilter`, so there is exactly one place where unauthenticated endpoints are defined. Configuration drift is structurally impossible.
 
+5. **Clean API responses.** `UserModel` implements Spring Security's `UserDetails` internally, but all Spring Security fields (`authorities`, `username`, `accountNonExpired`, etc.) are explicitly hidden from JSON responses. The API only returns meaningful business fields.
+
 ---
 
 ## Architecture
 
-The project uses **Package-by-Feature** (also called Vertical Slice Architecture). Each domain area owns its complete stack, with no horizontal `controllers/services/repositories` folders that force you to jump across the codebase:
+The project uses Package-by-Feature (also called Vertical Slice Architecture). Each domain area owns its complete stack, with no horizontal `controllers/services/repositories` folders that force you to jump across the codebase:
 
 ```
 src/main/java/com/shanudevcodes/fdpacb/
@@ -69,17 +71,19 @@ The backend and database are currently hosted on Render. You can interact with a
 **Base URL:** `https://finance-data-processing-backend-ar27.onrender.com`
 **Swagger UI:** [https://finance-data-processing-backend-ar27.onrender.com/swagger-ui/index.html#/](https://finance-data-processing-backend-ar27.onrender.com/swagger-ui/index.html#/)
 
+> The free tier on Render spins down after inactivity. If the first request is slow, wait 30 seconds for the instance to wake up.
+
 ### 2. Running Locally (Docker)
 
 If you want to spin the application up locally, all you need is Docker. You do not need to install Java, Gradle, or PostgreSQL locally.
 
-**Prerequisites:** Docker and Docker Compose (or you can use an external PostgreSQL database).
+**Prerequisites:** Docker and an external PostgreSQL database (local or cloud hosted).
 
 ```bash
 # 1. Build the Docker image
 docker build -t fdpacb .
 
-# 2. Run the container (replace dummy variables with real credentials)
+# 2. Run the container (replace placeholder values with real credentials)
 docker run -p 8081:8081 \
   -e DB_URL=jdbc:postgresql://<your-db-host>:5432/<db-name> \
   -e DB_USERNAME=<username> \
@@ -94,10 +98,18 @@ The server will start on port `8081`. Connect to `http://localhost:8081/swagger-
 
 The repository includes a multi-stage `Dockerfile` optimized for zero-downtime PaaS deployment.
 
-1. Go to **[render.com](https://render.com)** -> New -> Web Service -> connect your repository.
-2. Select **"Docker"** as the runtime.
-3. Set your 4 Environment Variables inside the Render dashboard (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET_BASE64`).
-4. Click **Deploy**. Render automatically injects the `$PORT` variable which the Dockerfile reads dynamically.
+1. Go to [render.com](https://render.com) -> New -> Web Service -> connect your repository.
+2. Select **Docker** as the runtime.
+3. Set your 4 environment variables inside the Render dashboard:
+
+| Variable | Description |
+| :--- | :--- |
+| `DB_URL` | Full JDBC URL, e.g. `jdbc:postgresql://host:5432/dbname` |
+| `DB_USERNAME` | Database username |
+| `DB_PASSWORD` | Database password |
+| `JWT_SECRET_BASE64` | A Base64-encoded secret (min 32 bytes recommended) |
+
+4. Click Deploy. Render automatically injects the `$PORT` variable which the Dockerfile reads dynamically.
 
 ---
 
@@ -142,7 +154,7 @@ Write operations are restricted to `ADMIN`. Read operations are available to `AD
 
 | Method | Endpoint | Role | Description |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/records/{userId}` | ADMIN | Create a financial record for a specific user. |
+| `POST` | `/api/v1/records/user/{userId}` | ADMIN | Create a financial record for a specific user. |
 | `PUT` | `/api/v1/records/{recordId}` | ADMIN | Update an existing record's fields. |
 | `DELETE` | `/api/v1/records/{recordId}` | ADMIN | Soft-delete a record (`isDeleted = true`). Never physically removed. |
 | `GET` | `/api/v1/records` | ADMIN, ANALYST | Paginated records with optional filters. Analyst results are automatically scoped to assigned Viewers. |
@@ -155,7 +167,7 @@ Write operations are restricted to `ADMIN`. Read operations are available to `AD
 | `size` | `int` | `10` | Records per page |
 | `type` | `String` | - | `INCOME` or `EXPENSE` |
 | `category` | `String` | - | `SALARY`, `FOOD`, `RENT`, etc. |
-| `assigned_userid` | `UUID[]` | - | Filter by specific user IDs (Analyst: must be assigned; Admin: unrestricted) |
+| `assigned_userid` | `UUID[]` | - | Filter by specific user IDs (Analyst: must be assigned, Admin: unrestricted) |
 
 ---
 
@@ -211,17 +223,17 @@ Write operations are restricted to `ADMIN`. Read operations are available to `AD
 
 | Role | Record Access | Dashboard | User Management |
 | :--- | :--- | :--- | :--- |
-| **VIEWER** | Own records only | Own data only | None |
+| **VIEWER** | Own records only (via dashboard) | Own data only | None |
 | **ANALYST** | Assigned Viewers + self | Assigned Viewers + self | Read own assigned Viewers |
 | **ADMIN** | All records | All data | Full management |
 
 ### How Data Scoping Works
 
-Access control goes further than "does this role have permission to call this endpoint." The system enforces *which records* each user can actually see.
+Access control goes further than "does this role have permission to call this endpoint." The system enforces which records each user can actually see.
 
 Before any database query executes, the caller's permitted user IDs are resolved to a `List<UUID>`. This list is passed directly into a JPQL `IN (:userIds)` clause. No records outside that list can ever be returned, not because of a post-query filter, but because the query structurally cannot fetch them.
 
-When an Analyst passes `target_user_id` values, those IDs are validated against the Analyst's assigned Viewers. Any ID that does not belong to that Analyst is silently stripped from the query. It does not cause a `403`, it simply disappears from the result set. When *all* IDs are invalid, an empty result is returned.
+When an Analyst passes `target_user_id` values, those IDs are validated against the Analyst's assigned Viewers. Any ID that does not belong to that Analyst is silently stripped from the query. It does not cause a `403`, it simply disappears from the result set. When all IDs are invalid, an empty result is returned.
 
 This means the data boundary enforcement is centralized in one place (`RecordService` and `RecordAnalyticsService`). Changing the scoping rules requires changing exactly one method.
 
@@ -249,9 +261,25 @@ Viewers are linked to Analysts via a `@ManyToOne` JPA relationship (`assigned_an
 | `isDeleted` | boolean | Soft delete flag (never truly deleted) |
 | `userId` | UUID (FK) | The user this record belongs to |
 
-**Category-Type constraint:** The service layer validates that the category is consistent with the type before persisting. For example, `SALARY` is only valid as an `INCOME` record, and `FOOD` is only valid as an `EXPENSE` record. A mismatch returns a `400 Bad Request` before touching the database. This prevents silent data corruption in analytics.
+**Category-Type constraint:** The service layer validates that the category is consistent with the type before persisting. For example, `SALARY` is only valid as an `INCOME` record, and `FOOD` is only valid as an `EXPENSE` record. A mismatch returns a `400 Bad Request` before touching the database.
+
+**Income categories:** `SALARY`, `BUSINESS`, `INVESTMENT`, `FREELANCE`, `OTHER_INCOME`
+
+**Expense categories:** `FOOD`, `TRANSPORT`, `SHOPPING`, `BILLS`, `ENTERTAINMENT`, `HEALTH`, `EDUCATION`, `TRAVEL`, `RENT`, `OTHER_EXPENSE`
 
 **Composite indexes** on `(user_id, transactionDate)`, `(user_id, type)`, and `(user_id, category)` ensure that the most common query patterns stay efficient at scale.
+
+### User (`users` table)
+
+| Field | Type | Notes |
+| :--- | :--- | :--- |
+| `id` | UUID | Auto-generated |
+| `name` | String | Display name |
+| `email` | String | Unique, used for login |
+| `hashedPassword` | String | BCrypt hashed, never returned in responses |
+| `roles` | Set<Role> | VIEWER, ANALYST, ADMIN (stored in `user_roles` table) |
+| `status` | Enum | `ACTIVE` or `INACTIVE` |
+| `assignedAnalyst` | UUID (FK) | Links a Viewer to their Analyst |
 
 ---
 
@@ -262,7 +290,7 @@ Viewers are linked to Analysts via a `@ManyToOne` JPA relationship (`assigned_an
 - **Access tokens** - 15-minute TTL. Carry `userId`, `email`, and `roles` as claims.
 - **Refresh tokens** - 30-day TTL. Stored in the database as SHA-256 hashes. The raw token is never persisted.
 - **Rotation** - on every refresh call, the used token hash is deleted from the database and a new pair is issued. A stolen token used after the legitimate owner has refreshed will be rejected.
-- **Inactive users** - If an Admin deactivates a user (`status = INACTIVE`), that user is immediately blocked from logging in or refreshing tokens. Furthermore, any active access tokens they currently hold are instantly rejected by the system's `isAccountNonLocked()` evaluation at the filter level.
+- **Inactive users** - If an Admin deactivates a user (`status = INACTIVE`), that user is immediately blocked from logging in or refreshing tokens. Any active access tokens they currently hold are also instantly rejected at the filter level via `isAccountNonLocked()`.
 
 ### Rate Limiting
 
@@ -321,7 +349,7 @@ Spring Security's authentication and authorization failures also return the same
 
 ## Assumptions and Tradeoffs
 
-**Viewers cannot browse raw records in a list view.** `GET /records` is restricted to Analyst and Admin. Viewers access their data through the Dashboard endpoint, which includes recent transactions. This fits the "dashboard consumer" framing from the assignment. Viewers consume summaries, not raw paginated data.
+**Viewers cannot browse raw records in a list view.** `GET /records` is restricted to Analyst and Admin. Viewers access their data through the Dashboard endpoint, which includes recent transactions. This fits the "dashboard consumer" framing from the assignment.
 
 **Admins create records, not users themselves.** Financial records are admin-managed entries, not user-submitted transactions. This matches a realistic scenario where data originates from an external source and Admins are responsible for importing it.
 
