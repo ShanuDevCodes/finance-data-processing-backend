@@ -73,6 +73,16 @@ The backend and database are currently hosted on Render. You can interact with a
 
 > The free tier on Render spins down after inactivity. If the first request is slow, wait 30 seconds for the instance to wake up.
 
+**Test accounts (pre-seeded on the live database):**
+
+| Role | Email               | Password   |
+| :--- |:--------------------|:-----------|
+| Admin + Analyst + Viewer | Admin@example.com   | Admin@2004 |
+| Analyst + Viewer | Analyst@example.com | Analyst@2004 |
+| Viewer | Shanu@example.com   | Shanu@2004 |
+
+Use the Admin account to test record creation, role management, and all write operations. Use the Analyst account to test scoped data access. Use the Viewer account to test dashboard-only access.
+
 ### 2. Running Locally (Docker)
 
 If you want to spin the application up locally, all you need is Docker. You do not need to install Java, Gradle, or PostgreSQL locally.
